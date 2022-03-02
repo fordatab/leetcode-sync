@@ -166,18 +166,31 @@ def _sync_one(submission: dict[str, Any], repo_path: str) -> bool:
     return True
 
 
-def run(limit: int = DEFAULT_FETCH_LIMIT, repo_path: str = ".") -> int:
+def run(
+    limit: int = DEFAULT_FETCH_LIMIT,
+    repo_path: str = ".",
+    backfill: bool = False,
+) -> int:
     """Run one full sync. Returns the number of problems committed.
+
+    With backfill=True, paginates every accepted submission instead of just
+    the most recent N. Intended for one-time historical import; for normal
+    cron runs leave it False.
 
     Raises CookieExpiredError if LeetCode auth fails (caller should abort).
     """
     current = state.load_state()
     synced_ids = {int(x) for x in current["synced_submission_ids"]}
 
-    recent = leetcode.fetch_recent_submissions(limit)
-    new_subs = [s for s in recent if int(s["id"]) not in synced_ids]
+    if backfill:
+        fetched = leetcode.fetch_all_ac_submissions()
+        label = "accepted"
+    else:
+        fetched = leetcode.fetch_recent_submissions(limit)
+        label = "recent"
+    new_subs = [s for s in fetched if int(s["id"]) not in synced_ids]
     new_subs.sort(key=lambda s: int(s["timestamp"]))
-    log.info("%d recent submission(s), %d new to sync", len(recent), len(new_subs))
+    log.info("%d %s submission(s), %d new to sync", len(fetched), label, len(new_subs))
 
     committed = 0
     for submission in new_subs:
@@ -232,6 +245,12 @@ def main(argv: list[str] | None = None) -> int:
         default=".",
         help="Path to the git repo to commit into (default: current dir).",
     )
+    parser.add_argument(
+        "--backfill",
+        action="store_true",
+        help="One-time historical import: paginate every accepted submission "
+        "instead of just the recent ones. Ignores --limit.",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -239,7 +258,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     try:
-        run(limit=args.limit, repo_path=args.repo_path)
+        run(limit=args.limit, repo_path=args.repo_path, backfill=args.backfill)
     except leetcode.CookieExpiredError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         print(

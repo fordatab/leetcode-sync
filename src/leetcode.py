@@ -15,12 +15,15 @@ import json
 import logging
 import os
 import sys
+import time
 from typing import Any
 
 import requests
 
 GRAPHQL_URL = "https://leetcode.com/graphql/"
 DEFAULT_TIMEOUT = 30
+BACKFILL_PAGE_SIZE = 20
+BACKFILL_PAGE_DELAY_SEC = 0.25
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +34,22 @@ query recentAcSubmissions($username: String!, $limit: Int!) {
     title
     titleSlug
     timestamp
+  }
+}
+""".strip()
+
+_ALL_SUBMISSIONS_QUERY = """
+query submissionList($offset: Int!, $limit: Int!, $lastKey: String) {
+  submissionList(offset: $offset, limit: $limit, lastKey: $lastKey) {
+    lastKey
+    hasNext
+    submissions {
+      id
+      title
+      titleSlug
+      timestamp
+      statusDisplay
+    }
   }
 }
 """.strip()
@@ -161,6 +180,58 @@ def fetch_recent_submissions(limit: int = 20, *, debug: bool = False) -> list[di
     return submissions
 
 
+def fetch_all_ac_submissions(*, debug: bool = False) -> list[dict[str, Any]]:
+    """Return every accepted submission for the current user, oldest first.
+
+    Pages through `submissionList` with offset+lastKey until exhausted, then
+    filters to `statusDisplay == "Accepted"`. Shape per entry matches
+    `fetch_recent_submissions` so downstream code is unchanged.
+    """
+    out: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    offset = 0
+    last_key: str | None = None
+
+    while True:
+        data = _post_graphql(
+            _ALL_SUBMISSIONS_QUERY,
+            {"offset": offset, "limit": BACKFILL_PAGE_SIZE, "lastKey": last_key},
+            debug=debug,
+        )
+        page = data.get("submissionList")
+        if page is None:
+            raise LeetCodeError(
+                "submissionList was null — schema may have drifted or cookies "
+                f"are unauthorized. Data: {json.dumps(data)[:500]}"
+            )
+
+        submissions = page.get("submissions") or []
+        for s in submissions:
+            sid = str(s.get("id"))
+            if sid in seen_ids:
+                continue
+            seen_ids.add(sid)
+            if s.get("statusDisplay") != "Accepted":
+                continue
+            out.append(
+                {
+                    "id": sid,
+                    "title": s.get("title"),
+                    "titleSlug": s.get("titleSlug"),
+                    "timestamp": str(s.get("timestamp")),
+                }
+            )
+
+        if not page.get("hasNext"):
+            break
+        offset += BACKFILL_PAGE_SIZE
+        last_key = page.get("lastKey")
+        time.sleep(BACKFILL_PAGE_DELAY_SEC)
+
+    out.sort(key=lambda x: int(x["timestamp"]))
+    return out
+
+
 def fetch_submission_details(submission_id: int, *, debug: bool = False) -> dict[str, Any]:
     """Return full details for a single submission ID."""
     data = _post_graphql(
@@ -192,6 +263,8 @@ def _main(argv: list[str] | None = None) -> int:
     p_details = sub.add_parser("details", help="Fetch details for a submission id")
     p_details.add_argument("submission_id", type=int)
 
+    sub.add_parser("backfill", help="Paginate every accepted submission (oldest first)")
+
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
@@ -199,6 +272,8 @@ def _main(argv: list[str] | None = None) -> int:
     try:
         if args.cmd == "recent":
             result = fetch_recent_submissions(args.limit, debug=args.debug_query)
+        elif args.cmd == "backfill":
+            result = fetch_all_ac_submissions(debug=args.debug_query)
         else:
             result = fetch_submission_details(args.submission_id, debug=args.debug_query)
     except CookieExpiredError as e:

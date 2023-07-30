@@ -5,20 +5,20 @@
 
 ## Problem
 
-Given an array of integers and a target value, find the indices of two distinct elements that sum to the target. The input is guaranteed to have exactly one valid pair, and the array contains between 2 and 10,000 elements with values ranging from -10^9 to 10^9.
+Given an array of integers and a target sum, find the indices of two distinct elements that add up to the target. The problem guarantees exactly one solution exists, and the same element cannot be used twice. The array can contain up to 10,000 elements with values ranging from -10^9 to 10^9.
 
 ## Approach
 
-The solution uses a brute-force nested loop approach. The outer loop iterates through each element using index `x`, while the inner loop iterates through all elements using index `y`. For each pair of indices, it checks whether their corresponding values sum to the target and ensures the indices are different (x != y). When a valid pair is found, it allocates memory for a two-element array, stores the indices, and returns them immediately. This checks all possible pairs exhaustively until finding the answer.
+This solution uses a nested loop approach to check all possible pairs of elements. The outer loop iterates through each element at index `i`, while the inner loop examines all elements that come after it by creating a slice `nums2 = nums[i+1:]`. For each pair, it checks if their sum equals the target. When a matching pair is found, it returns the indices `[i, i+j+1]`, where `i+j+1` accounts for the offset created by the slice starting at position `i+1`. This is a brute-force solution with quadratic time complexity.
 
 ## Complexity
 
 - **Time:** O(n^2)
-- **Space:** O(1)
+- **Space:** O(n)
 
 ## Stats
 
-- Submitted: 2023-07-29 23:54 UTC
-- Runtime: 150 ms
-- Memory: 6.3 MB
-- Language: C
+- Submitted: 2023-07-30 01:53 UTC
+- Runtime: 2202 ms
+- Memory: 14.3 MB
+- Language: Python

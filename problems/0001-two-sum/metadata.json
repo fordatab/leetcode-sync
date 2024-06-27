@@ -14,5 +14,13 @@
     "memory": "14.3 MB",
     "language": "Python",
     "difficulty": "Easy"
+  },
+  {
+    "submission_id": 1301490181,
+    "timestamp": 1719458637,
+    "runtime": "8 ms",
+    "memory": "14 MB",
+    "language": "C++",
+    "difficulty": "Easy"
   }
 ]

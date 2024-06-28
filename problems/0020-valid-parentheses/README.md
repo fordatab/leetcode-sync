@@ -1,21 +1,20 @@
 # Valid Parentheses
 
 **Difficulty:** Easy
-**Tags:** stack, string, matching
+**Tags:** stack, string, ascii-arithmetic
 
 ## Problem
 
-Given a string containing only bracket characters (parentheses, square brackets, and curly braces), determine whether the brackets are properly balanced and nested. Each opening bracket must be closed by a matching closing bracket in the correct order, and every closing bracket must have a corresponding opening bracket of the same type. The string length can be up to 10,000 characters.
+Given a string containing only bracket characters (parentheses, square brackets, and curly braces), determine whether the brackets are properly matched and nested. Each opening bracket must have a corresponding closing bracket of the same type, and they must be closed in the correct order. The string length can be up to 10,000 characters.
 
 ## Approach
 
-The solution uses a stack-based approach to track opening brackets. It allocates a character array as a stack with size equal to the input string length, using an integer `top` as the stack pointer (initialized to -1 for an empty stack).
+The solution uses a stack to track opening brackets as they're encountered. When iterating through each character:
 
-The algorithm iterates through each character in the string:
-- When encountering an opening bracket ('(', '{', or '['), it pushes the character onto the stack by incrementing `top` and storing the character.
-- When encountering a closing bracket, it first checks if the stack is empty (returning false if so). Then it verifies that the top of the stack contains the matching opening bracket. If matched, it pops from the stack by decrementing `top`; otherwise, it returns false.
-
-After processing all characters, the function returns true only if the stack is empty (`top == -1`), ensuring all opening brackets were properly closed.
+- If the character is an opening bracket ('(', '[', or '{'), it's pushed onto the stack
+- If the character is a closing bracket, the code checks if the stack is empty (which would mean no matching opening bracket exists). If not empty, it uses ASCII value arithmetic to verify matching: it checks if the top of the stack is 1 or 2 less than the current closing bracket's ASCII value (this works because '(' and ')' differ by 1, '[' and ']' differ by 2, and '{' and '}' differ by 2)
+- If a mismatch is found or the stack is empty when a closing bracket appears, the function returns false
+- After processing all characters, the function returns true only if the stack is empty, ensuring all opening brackets were matched
 
 ## Complexity
 
@@ -24,7 +23,7 @@ After processing all characters, the function returns true only if the stack is 
 
 ## Stats
 
-- Submitted: 2023-08-03 22:22 UTC
-- Runtime: 2 ms
-- Memory: 5.8 MB
-- Language: C
+- Submitted: 2024-06-28 04:26 UTC
+- Runtime: 3 ms
+- Memory: 7.7 MB
+- Language: C++

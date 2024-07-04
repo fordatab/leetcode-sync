@@ -133,7 +133,14 @@ def _append_metadata(
 
 
 def _sync_one(submission: dict[str, Any], repo_path: str) -> bool:
-    """Sync a single submission. Returns True if a commit was created."""
+    """Sync a single submission. Returns True if a commit was created.
+
+    Every accepted submission produces its own backdated commit so the
+    contribution graph reflects every accept, not just the first per problem.
+    Resubmissions skip the Claude call and reuse the existing README — the
+    metadata.json append always provides a non-empty diff, and the code
+    overwrite captures any refactoring between resubmissions.
+    """
     submission_id = int(submission["id"])
     timestamp = int(submission["timestamp"])
 
@@ -144,23 +151,24 @@ def _sync_one(submission: dict[str, Any], repo_path: str) -> bool:
 
     folder = Path(repo_path) / PROBLEMS_DIRNAME / _folder_name(question)
     solution_path = folder / f"solution.{ext}"
-
-    # Idempotency safeguard: this problem+language is already on disk.
-    if solution_path.exists():
-        log.info("Skip submission %s: %s already exists", submission_id, solution_path)
-        state.mark_synced(submission_id)
-        return False
-
-    enrichment = ai_agent.enrich_submission(details)
+    is_resubmission = solution_path.exists()
 
     folder.mkdir(parents=True, exist_ok=True)
     solution_path.write_text(details.get("code") or "", encoding="utf-8")
-    (folder / "README.md").write_text(
-        _render_readme(details, enrichment, timestamp), encoding="utf-8"
-    )
     _append_metadata(folder / "metadata.json", details, submission_id, timestamp)
 
-    git_ops.commit_with_date(enrichment["commit_message"], timestamp, repo_path)
+    if is_resubmission:
+        padded = str(question.get("questionId", "0")).zfill(4)
+        slug = question.get("titleSlug") or "unknown"
+        commit_message = f"resubmit({padded}): {slug}"
+    else:
+        enrichment = ai_agent.enrich_submission(details)
+        (folder / "README.md").write_text(
+            _render_readme(details, enrichment, timestamp), encoding="utf-8"
+        )
+        commit_message = enrichment["commit_message"]
+
+    git_ops.commit_with_date(commit_message, timestamp, repo_path)
     state.mark_synced(submission_id)
     log.info("Synced submission %s -> %s", submission_id, folder.name)
     return True

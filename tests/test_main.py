@@ -270,24 +270,41 @@ class IdempotencyTests(MainTestBase):
         self.assertEqual(committed, 0)
         self.assertEqual(self._commit_count(), count_after_first)
 
-    def test_skips_submission_already_on_disk(self):
-        # Pre-create the solution file as if a previous run wrote it but
-        # state.json was lost — the disk check must still skip it.
+    def test_resubmission_commits_without_calling_claude(self):
+        # Pre-create the solution file as if an earlier submission of the
+        # same problem+language already landed. The new submission must
+        # still produce a backdated commit (every accept counts), but Claude
+        # is not re-invoked and the existing README is preserved.
         folder = self.repo / "problems" / "0001-two-sum"
         folder.mkdir(parents=True)
         (folder / "solution.py").write_text("stale", encoding="utf-8")
+        (folder / "README.md").write_text("# original readme\n", encoding="utf-8")
 
         _, _, m_enrich = self._patch_apis()
-        main.run(repo_path=str(self.repo))
+        committed = main.run(repo_path=str(self.repo))
 
-        # Claude was only called for the other problem, and 201 still got
-        # reconciled into state so it is not re-fetched forever.
+        # Claude only ran for the other (genuinely new) problem.
         self.assertEqual(m_enrich.call_count, 1)
+        # Both submissions produced commits.
+        self.assertEqual(committed, 2)
         from src import state
 
         self.assertIn(201, state.load_state()["synced_submission_ids"])
+        # Solution file was overwritten with the new submission's code.
         self.assertEqual(
-            (folder / "solution.py").read_text(encoding="utf-8"), "stale"
+            (folder / "solution.py").read_text(encoding="utf-8"),
+            DETAILS[201]["code"],
+        )
+        # README from the prior submission is preserved (no Claude regen).
+        self.assertEqual(
+            (folder / "README.md").read_text(encoding="utf-8"),
+            "# original readme\n",
+        )
+        # Commit message uses the resubmit template, not Claude's solve(...).
+        messages = self._log("%s")
+        self.assertTrue(
+            any(m.startswith("resubmit(0001): two-sum") for m in messages),
+            messages,
         )
 
 

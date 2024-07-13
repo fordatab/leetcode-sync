@@ -153,20 +153,24 @@ def _sync_one(submission: dict[str, Any], repo_path: str) -> bool:
     solution_path = folder / f"solution.{ext}"
     is_resubmission = solution_path.exists()
 
-    folder.mkdir(parents=True, exist_ok=True)
-    solution_path.write_text(details.get("code") or "", encoding="utf-8")
-    _append_metadata(folder / "metadata.json", details, submission_id, timestamp)
-
+    # Call Claude (if needed) before writing any files so a failure does not
+    # leave a half-built folder on disk for the next run to trip over.
+    enrichment = None
     if is_resubmission:
         padded = str(question.get("questionId", "0")).zfill(4)
         slug = question.get("titleSlug") or "unknown"
         commit_message = f"resubmit({padded}): {slug}"
     else:
         enrichment = ai_agent.enrich_submission(details)
+        commit_message = enrichment["commit_message"]
+
+    folder.mkdir(parents=True, exist_ok=True)
+    solution_path.write_text(details.get("code") or "", encoding="utf-8")
+    _append_metadata(folder / "metadata.json", details, submission_id, timestamp)
+    if enrichment is not None:
         (folder / "README.md").write_text(
             _render_readme(details, enrichment, timestamp), encoding="utf-8"
         )
-        commit_message = enrichment["commit_message"]
 
     git_ops.commit_with_date(commit_message, timestamp, repo_path)
     state.mark_synced(submission_id)

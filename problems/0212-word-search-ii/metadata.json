@@ -14,5 +14,13 @@
     "memory": "3.3 MB",
     "language": "Rust",
     "difficulty": "Hard"
+  },
+  {
+    "submission_id": 1328182783,
+    "timestamp": 1721546127,
+    "runtime": "479 ms",
+    "memory": "17.8 MB",
+    "language": "Python3",
+    "difficulty": "Hard"
   }
 ]

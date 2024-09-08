@@ -30,5 +30,13 @@
     "memory": "49.5 MB",
     "language": "JavaScript",
     "difficulty": "Easy"
+  },
+  {
+    "submission_id": 1382875429,
+    "timestamp": 1725774773,
+    "runtime": "182 ms",
+    "memory": "101.4 MB",
+    "language": "Racket",
+    "difficulty": "Easy"
   }
 ]

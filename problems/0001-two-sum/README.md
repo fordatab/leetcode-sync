@@ -1,28 +1,24 @@
 # Two Sum
 
 **Difficulty:** Easy
-**Tags:** hash-table, array, two-pointers
+**Tags:** array, nested-loops, brute-force
 
 ## Problem
 
-Given an array of integers and a target value, find the indices of two elements that sum to the target. The array contains between 2 and 10,000 elements with values ranging from -10^9 to 10^9, and exactly one valid pair is guaranteed to exist. Each element can only be used once.
+Given an array of integers and a target sum, find the indices of two distinct elements that add up to the target. The input is guaranteed to have exactly one valid pair, and the array can contain between 2 and 10,000 elements with values ranging from -10^9 to 10^9.
 
 ## Approach
 
-The solution uses a hash table (unordered_map) to store previously seen numbers and their indices. As it iterates through the array, for each element it calculates the complement (target minus current element) needed to reach the target sum.
-
-For each number encountered, the algorithm checks if its complement already exists in the hash table. If the complement is not found, it stores the current number and its index in the map for future lookups. If the complement is found, it immediately returns a vector containing the stored index of the complement and the current index.
-
-This single-pass approach avoids the need for nested loops by trading space for time—each element is examined once, and lookups in the hash table are O(1) on average.
+This solution uses a brute-force nested loop approach. The outer loop iterates through each element in the array using index `i`, while the inner loop starts at `i+1` and checks every subsequent element at index `j`. For each pair of indices, the code checks if the sum of `nums[i]` and `nums[j]` equals the target. When a matching pair is found, the function immediately returns an array containing both indices. If no pair is found after examining all combinations, an empty array is returned (though this case should never occur given the problem constraints).
 
 ## Complexity
 
-- **Time:** O(n)
-- **Space:** O(n)
+- **Time:** O(n^2)
+- **Space:** O(1)
 
 ## Stats
 
-- Submitted: 2024-06-27 03:23 UTC
-- Runtime: 8 ms
-- Memory: 14 MB
-- Language: C++
+- Submitted: 2024-09-08 05:51 UTC
+- Runtime: 142 ms
+- Memory: 49.5 MB
+- Language: JavaScript

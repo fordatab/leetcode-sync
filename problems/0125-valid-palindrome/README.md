@@ -5,11 +5,11 @@
 
 ## Problem
 
-Given a string containing various ASCII characters, determine whether it forms a palindrome when considering only alphanumeric characters (letters and numbers) in a case-insensitive manner. All other characters like spaces, punctuation, and symbols should be ignored. The string can be up to 200,000 characters long.
+Given a string containing uppercase letters, lowercase letters, numbers, and other ASCII characters, determine whether the sequence of alphanumeric characters (letters and digits) reads the same forwards and backwards when case is ignored. The input string can be up to 200,000 characters long.
 
 ## Approach
 
-The solution uses a two-pointer technique to check for palindrome properties without preprocessing the string. Two pointers start at opposite ends of the string and move toward each other. At each step, the algorithm skips over non-alphanumeric characters by advancing the left pointer rightward or the right pointer leftward until both point to valid alphanumeric characters. Once both pointers reference alphanumeric characters, it compares them in a case-insensitive manner using `tolower()`. If the characters match, both pointers move inward; if they don't match, the function immediately returns false. The process continues until the pointers meet or cross, at which point the string is confirmed to be a palindrome. Special boundary checks handle cases where all characters are non-alphanumeric.
+The solution uses a two-pointer technique, starting with one pointer at the beginning (`l`) and another at the end (`r`) of the string. It iterates inward, skipping any non-alphanumeric characters by advancing the appropriate pointer. When both pointers land on alphanumeric characters, it compares them in lowercase form. If any mismatch is found, the function immediately returns false. If the pointers meet or cross without finding a mismatch, the string is confirmed as a palindrome and the function returns true. The use of `tolower()` ensures case-insensitive comparison, and `isalnum()` filters out non-alphanumeric characters.
 
 ## Complexity
 
@@ -18,7 +18,7 @@ The solution uses a two-pointer technique to check for palindrome properties wit
 
 ## Stats
 
-- Submitted: 2024-06-30 06:42 UTC
-- Runtime: 9 ms
-- Memory: 8.6 MB
-- Language: C++
+- Submitted: 2025-10-04 09:44 UTC
+- Runtime: 2 ms
+- Memory: 8.5 MB
+- Language: C

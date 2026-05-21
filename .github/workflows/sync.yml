@@ -1,0 +1,50 @@
+name: Sync LeetCode
+
+# Mirrors recent LeetCode accepted submissions into this repo. See README
+# for the one-time setup (secrets, verified email).
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # every 6 hours (UTC)
+  workflow_dispatch:         # manual trigger from the Actions tab
+
+permissions:
+  contents: write            # the job commits and pushes solution folders
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # full history so backdated commits land correctly
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Configure git identity
+        run: |
+          git config user.name "leetcode-sync-bot"
+          # Replace with an email verified on your GitHub account, otherwise
+          # the backdated commits will not count toward your contribution graph.
+          git config user.email "YOUR_VERIFIED_GITHUB_EMAIL"
+
+      - name: Run sync
+        env:
+          LEETCODE_SESSION: ${{ secrets.LEETCODE_SESSION }}
+          LEETCODE_CSRF_TOKEN: ${{ secrets.LEETCODE_CSRF_TOKEN }}
+          LEETCODE_USERNAME: ${{ secrets.LEETCODE_USERNAME }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python -m src.main
+
+      - name: Push commits
+        # src.main pushes on a clean run; running this unconditionally also
+        # flushes any commits made before a later step failed, so backdated
+        # commits are never stranded on the runner.
+        if: always()
+        run: git push

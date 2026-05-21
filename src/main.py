@@ -1,0 +1,256 @@
+"""Orchestrator entry point for the LeetCode -> GitHub sync.
+
+Run with `python -m src.main`. Each run:
+
+  1. Loads state.json.
+  2. Fetches recent accepted submissions from LeetCode.
+  3. Keeps only ones not already synced, oldest first.
+  4. For each: fetches details, enriches via Claude, writes the problem
+     folder, and commits backdated to the submission timestamp.
+  5. Commits state.json with a normal (current-time) commit and pushes.
+
+A single bad submission is logged and skipped — it never blocks the run.
+An expired LeetCode cookie aborts with a clear message (exit code 2).
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from src import ai_agent, git_ops, leetcode, state
+
+log = logging.getLogger(__name__)
+
+DEFAULT_FETCH_LIMIT = 20
+PROBLEMS_DIRNAME = "problems"
+
+# LeetCode `lang.name` slug -> source file extension.
+_LANG_EXT = {
+    "python": "py",
+    "python3": "py",
+    "pythondata": "py",
+    "c": "c",
+    "cpp": "cpp",
+    "csharp": "cs",
+    "java": "java",
+    "kotlin": "kt",
+    "scala": "scala",
+    "javascript": "js",
+    "typescript": "ts",
+    "golang": "go",
+    "rust": "rs",
+    "swift": "swift",
+    "ruby": "rb",
+    "php": "php",
+    "dart": "dart",
+    "racket": "rkt",
+    "erlang": "erl",
+    "elixir": "ex",
+    "bash": "sh",
+    "mysql": "sql",
+    "mssql": "sql",
+    "oraclesql": "sql",
+    "postgresql": "sql",
+}
+
+
+def _ext_for_lang(lang_name: str) -> str:
+    name = (lang_name or "").lower()
+    return _LANG_EXT.get(name, name or "txt")
+
+
+def _folder_name(question: dict[str, Any]) -> str:
+    """`<4-digit-id>-<title-slug>`, e.g. 0146-lru-cache."""
+    padded = str(question.get("questionId", "0")).zfill(4)
+    slug = question.get("titleSlug") or "unknown"
+    return f"{padded}-{slug}"
+
+
+def _render_readme(
+    details: dict[str, Any], enrichment: dict[str, Any], timestamp: int
+) -> str:
+    question = details.get("question") or {}
+    lang = details.get("lang") or {}
+    complexity = enrichment.get("complexity") or {}
+    tags = enrichment.get("tags") or []
+    submitted = datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime(
+        "%Y-%m-%d %H:%M UTC"
+    )
+    return (
+        f"# {question.get('title', '')}\n\n"
+        f"**Difficulty:** {question.get('difficulty', '')}\n"
+        f"**Tags:** {', '.join(tags)}\n\n"
+        f"## Problem\n\n{enrichment.get('problem_summary', '')}\n\n"
+        f"## Approach\n\n{enrichment.get('approach', '')}\n\n"
+        f"## Complexity\n\n"
+        f"- **Time:** {complexity.get('time', '')}\n"
+        f"- **Space:** {complexity.get('space', '')}\n\n"
+        f"## Stats\n\n"
+        f"- Submitted: {submitted}\n"
+        f"- Runtime: {details.get('runtimeDisplay', '')}\n"
+        f"- Memory: {details.get('memoryDisplay', '')}\n"
+        f"- Language: {lang.get('verboseName') or lang.get('name', '')}\n"
+    )
+
+
+def _append_metadata(
+    path: Path, details: dict[str, Any], submission_id: int, timestamp: int
+) -> None:
+    """Append this submission's metadata to metadata.json, kept as a list.
+
+    Solving the same problem in another language adds an entry rather than
+    overwriting the old one.
+    """
+    lang = details.get("lang") or {}
+    question = details.get("question") or {}
+    entry = {
+        "submission_id": submission_id,
+        "timestamp": timestamp,
+        "runtime": details.get("runtimeDisplay"),
+        "memory": details.get("memoryDisplay"),
+        "language": lang.get("verboseName") or lang.get("name"),
+        "difficulty": question.get("difficulty"),
+    }
+
+    entries: list[dict[str, Any]] = []
+    if path.exists():
+        try:
+            loaded = json.loads(path.read_text(encoding="utf-8"))
+            entries = loaded if isinstance(loaded, list) else [loaded]
+        except json.JSONDecodeError:
+            log.warning("metadata.json at %s was unreadable; recreating it", path)
+
+    if not any(e.get("submission_id") == submission_id for e in entries):
+        entries.append(entry)
+    path.write_text(json.dumps(entries, indent=2) + "\n", encoding="utf-8")
+
+
+def _sync_one(submission: dict[str, Any], repo_path: str) -> bool:
+    """Sync a single submission. Returns True if a commit was created."""
+    submission_id = int(submission["id"])
+    timestamp = int(submission["timestamp"])
+
+    details = leetcode.fetch_submission_details(submission_id)
+    question = details.get("question") or {}
+    lang = details.get("lang") or {}
+    ext = _ext_for_lang(lang.get("name", ""))
+
+    folder = Path(repo_path) / PROBLEMS_DIRNAME / _folder_name(question)
+    solution_path = folder / f"solution.{ext}"
+
+    # Idempotency safeguard: this problem+language is already on disk.
+    if solution_path.exists():
+        log.info("Skip submission %s: %s already exists", submission_id, solution_path)
+        state.mark_synced(submission_id)
+        return False
+
+    enrichment = ai_agent.enrich_submission(details)
+
+    folder.mkdir(parents=True, exist_ok=True)
+    solution_path.write_text(details.get("code") or "", encoding="utf-8")
+    (folder / "README.md").write_text(
+        _render_readme(details, enrichment, timestamp), encoding="utf-8"
+    )
+    _append_metadata(folder / "metadata.json", details, submission_id, timestamp)
+
+    git_ops.commit_with_date(enrichment["commit_message"], timestamp, repo_path)
+    state.mark_synced(submission_id)
+    log.info("Synced submission %s -> %s", submission_id, folder.name)
+    return True
+
+
+def run(limit: int = DEFAULT_FETCH_LIMIT, repo_path: str = ".") -> int:
+    """Run one full sync. Returns the number of problems committed.
+
+    Raises CookieExpiredError if LeetCode auth fails (caller should abort).
+    """
+    current = state.load_state()
+    synced_ids = {int(x) for x in current["synced_submission_ids"]}
+
+    recent = leetcode.fetch_recent_submissions(limit)
+    new_subs = [s for s in recent if int(s["id"]) not in synced_ids]
+    new_subs.sort(key=lambda s: int(s["timestamp"]))
+    log.info("%d recent submission(s), %d new to sync", len(recent), len(new_subs))
+
+    committed = 0
+    for submission in new_subs:
+        submission_id = submission.get("id")
+        try:
+            if _sync_one(submission, repo_path):
+                committed += 1
+        except leetcode.CookieExpiredError:
+            raise  # auth is dead — every later fetch fails too, so abort.
+        except Exception as e:  # noqa: BLE001 - one bad submission must not block the rest
+            log.error(
+                "Failed to sync submission %s (%s): %s",
+                submission_id,
+                submission.get("title"),
+                e,
+            )
+
+    total_commits = committed
+    if git_ops.has_uncommitted_changes(repo_path):
+        git_ops.commit_with_date(
+            "chore: update sync state", int(time.time()), repo_path
+        )
+        total_commits += 1
+
+    if total_commits > 0:
+        git_ops.push(repo_path)
+        log.info("Done: %d problem(s) synced and pushed.", committed)
+    else:
+        log.info("Done: nothing new to sync.")
+    return committed
+
+
+def main(argv: list[str] | None = None) -> int:
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+    except ImportError:
+        pass
+
+    parser = argparse.ArgumentParser(
+        description="Sync recent LeetCode submissions into this repo."
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_FETCH_LIMIT,
+        help="How many recent submissions to scan (default 20).",
+    )
+    parser.add_argument(
+        "--repo-path",
+        default=".",
+        help="Path to the git repo to commit into (default: current dir).",
+    )
+    args = parser.parse_args(argv)
+
+    logging.basicConfig(
+        level=logging.INFO, format="%(levelname)s %(name)s: %(message)s"
+    )
+
+    try:
+        run(limit=args.limit, repo_path=args.repo_path)
+    except leetcode.CookieExpiredError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        print(
+            "Cookie expired — refresh the LEETCODE_SESSION secret.", file=sys.stderr
+        )
+        return 2
+    except (leetcode.LeetCodeError, state.StateError, git_ops.GitError) as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,6 @@
+# Development / test dependencies.
+# Installs the runtime deps too, then adds test-only tooling.
+-r requirements.txt
+
+# Parses the GitHub Actions workflow YAML in tests/test_workflow.py.
+PyYAML>=6.0

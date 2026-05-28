@@ -4,7 +4,7 @@ name: Sync LeetCode
 # for the one-time setup (secrets, verified email).
 on:
   schedule:
-    - cron: "0 */6 * * *"   # every 6 hours (UTC)
+    - cron: "0 0 * * *"   # every 24 hours (UTC)
   workflow_dispatch:         # manual trigger from the Actions tab
 
 permissions:

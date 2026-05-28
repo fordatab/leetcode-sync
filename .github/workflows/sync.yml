@@ -32,7 +32,7 @@ jobs:
           git config user.name "leetcode-sync-bot"
           # Replace with an email verified on your GitHub account, otherwise
           # the backdated commits will not count toward your contribution graph.
-          git config user.email "YOUR_VERIFIED_GITHUB_EMAIL"
+          git config user.email ugcire132@gmail.com
 
       - name: Run sync
         env:

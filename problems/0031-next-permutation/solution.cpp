@@ -1,5 +1,6 @@
 class Solution {
 public:
+<<<<<<< HEAD
     void nextPermutation(vector<int>& array) {
         int i = array.size() - 1;
         
@@ -25,3 +26,27 @@ public:
         reverse(array.begin() + i, array.end());
     }
 };
+=======
+    void nextPermutation(vector<int>& nums) {
+        int i = nums.size() - 2;
+        while (i >= 0 && nums[i + 1] <= nums[i]) {
+            i--;
+        }
+        if (i >= 0) {
+            int j = nums.size() - 1;
+            while (nums[j] <= nums[i]) {
+                j--;
+            }
+            swap(nums[i], nums[j]);
+        }
+        reverse(nums.begin() + i + 1, nums.end());
+    }
+
+// private:
+//     void swap(vector<int>& nums, int i, int j) {
+//         int temp = nums[i];
+//         nums[i] = nums[j];
+//         nums[j] = temp;
+//     }
+};
+>>>>>>> 3440cedbebbd4694a83e579928aecd0b6ec10f2d

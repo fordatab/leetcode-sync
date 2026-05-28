@@ -5,6 +5,7 @@
 
 ## Problem
 
+<<<<<<< HEAD
 Given a 2D integer matrix, implement a data structure that supports multiple queries to calculate the sum of all elements within any rectangular region defined by its top-left and bottom-right corners. The matrix dimensions can be up to 200×200, element values range from -10⁴ to 10⁴, and up to 10⁴ queries must be handled efficiently with O(1) query time.
 
 ## Approach
@@ -18,6 +19,21 @@ For range queries, the sum of a rectangle is calculated using four lookups in th
 ## Complexity
 
 - **Time:** O(m*n) for initialization, O(1) for each query
+=======
+Given a 2D matrix, implement a class that efficiently handles multiple queries for the sum of elements within rectangular regions. Each query specifies the upper-left and lower-right corners of a rectangle, and the solution must compute region sums in constant time. The matrix dimensions can be up to 200×200, and up to 10,000 queries may be performed.
+
+## Approach
+
+The solution uses a 2D prefix sum array to enable constant-time range queries. During initialization, it builds a prefix sum matrix where each cell `(i+1, j+1)` stores the sum of all elements in the rectangle from `(0, 0)` to `(i, j)` in the original matrix. The prefix array is sized `(m+1) × (n+1)` with an extra row and column of zeros to simplify boundary handling.
+
+The prefix sum at each position is computed using the inclusion-exclusion principle: add the current matrix element, add the prefix sums from the cell above and to the left, then subtract the diagonal prefix sum (which was counted twice).
+
+For range queries, the sum of a rectangle is calculated by taking the prefix sum at the bottom-right corner, subtracting the prefix sums of the regions above and to the left of the target rectangle, and adding back the top-left diagonal prefix sum (which was subtracted twice). All indices are shifted by 1 to account for the padding in the prefix array.
+
+## Complexity
+
+- **Time:** O(m*n) for initialization, O(1) per query
+>>>>>>> 3440cedbebbd4694a83e579928aecd0b6ec10f2d
 - **Space:** O(m*n)
 
 ## Stats

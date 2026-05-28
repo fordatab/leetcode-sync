@@ -1,6 +1,7 @@
 class Solution {
 public:
     int maxDepth(string s) {
+<<<<<<< HEAD
         stack<char> stack;
         int maxDepth = 0;
         
@@ -21,5 +22,21 @@ public:
         }
         
         return maxDepth;
+=======
+        int ans = 0;
+        int openBrackets = 0;
+
+        for (char c : s) {
+            if (c == '(') {
+                openBrackets++;
+            } else if (c == ')') {
+                openBrackets--;
+            }
+            
+            ans = max(ans, openBrackets);
+        }
+        
+        return ans;
+>>>>>>> 3440cedbebbd4694a83e579928aecd0b6ec10f2d
     }
 };

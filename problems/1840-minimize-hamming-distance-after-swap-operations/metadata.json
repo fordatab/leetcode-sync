@@ -1,8 +1,14 @@
 [
   {
+<<<<<<< HEAD
     "submission_id": 1998417671,
     "timestamp": 1778272874,
     "runtime": "157 ms",
+=======
+    "submission_id": 1998420562,
+    "timestamp": 1778273375,
+    "runtime": "143 ms",
+>>>>>>> 3440cedbebbd4694a83e579928aecd0b6ec10f2d
     "memory": "154 MB",
     "language": "C++",
     "difficulty": "Medium"

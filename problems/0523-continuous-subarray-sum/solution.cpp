@@ -2,6 +2,7 @@ class Solution {
 public:
     bool checkSubarraySum(vector<int>& nums, int k) {
         int n = nums.size();
+<<<<<<< HEAD
         vector<int> prefix(n);
         prefix[0] = nums[0];
         prefix[0] %= k;
@@ -27,6 +28,23 @@ public:
                     return true;
                 } 
             }
+=======
+        int prefix = 0;
+        unordered_map<int, int> pre;
+        for (int i = 0; i < n; i++) {
+            prefix += nums[i];
+            prefix %= k;
+            pre[prefix] = i;
+        }
+
+        int sum = 0;
+        for (int i = 0; i < n; i++) {
+            if (pre[sum] - i > 0) {
+                return true;                 
+            }
+            sum += nums[i];
+            sum %= k;
+>>>>>>> 3440cedbebbd4694a83e579928aecd0b6ec10f2d
         }
         return false;
         

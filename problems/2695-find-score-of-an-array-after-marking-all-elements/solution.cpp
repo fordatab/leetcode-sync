@@ -1,6 +1,7 @@
 class Solution {
 public:
     long long findScore(vector<int>& nums) {
+<<<<<<< HEAD
         priority_queue<pair<int, int>, vector<pair<int, int>>, greater<pair<int, int>>> q;
         for (int i = 0; i < nums.size(); i++) {
             q.push({nums[i], i});
@@ -22,5 +23,19 @@ public:
             marked.insert(b);
         }
         return out;
+=======
+        long long ans = 0;
+        for (int i = 0; i < nums.size(); i += 2) {
+            int currentStart = i;
+            while (i + 1 < nums.size() && nums[i + 1] < nums[i]) {
+                i++;
+            }
+            for (int currentIndex = i; currentIndex >= currentStart;
+                 currentIndex -= 2) {
+                ans += nums[currentIndex];
+            }
+        }
+        return ans;
+>>>>>>> 3440cedbebbd4694a83e579928aecd0b6ec10f2d
     }
 };

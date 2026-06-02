@@ -4,8 +4,7 @@ public:
         long long out = 0;
         int prev = nums[0];
         for (int i = 0; i < nums.size(); i++) {
-            if (nums[i] >= prev) {
-            } else {
+            if (nums[i] < prev) {
                 out += prev - nums[i]; 
             }
             prev = nums[i];

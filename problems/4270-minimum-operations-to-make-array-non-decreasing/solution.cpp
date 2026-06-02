@@ -3,11 +3,12 @@ public:
     long long minOperations(vector<int>& nums) {
         long long out = 0;
         int prev = nums[0];
-        for (int n : nums) {
-            if (n < prev) {
-                out += prev - n; 
+        for (int i = 0; i < nums.size(); i++) {
+            if (nums[i] >= prev) {
+            } else {
+                out += prev - nums[i]; 
             }
-            prev = n;
+            prev = nums[i];
         }
         return out;
     }

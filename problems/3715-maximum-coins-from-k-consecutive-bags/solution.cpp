@@ -1,65 +1,60 @@
 class Solution {
 public:
-    struct preRange {
-        int left;
-        int right;
-        long long prefixSum;
-    };
-
     long long maximumCoins(vector<vector<int>>& coins, int k) {
         sort(coins.begin(), coins.end());
-        long long out = 0;
-        long long prefix = 0;
-        vector<preRange> pre;
-        for (auto& range : coins) {
-            prefix += range[2] * (long long)(range[1] - range[0] + 1);
-            pre.push_back({range[0], range[1], prefix});
+        int n = coins.size();
+        
+        // 1-based prefix sum array to avoid out-of-bounds checks
+        vector<long long> prefix(n + 1, 0);
+        for (int i = 0; i < n; i++) {
+            long long bags = coins[i][1] - coins[i][0] + 1;
+            prefix[i + 1] = prefix[i] + bags * coins[i][2];
         }
-        // (1, 5, 4), (10, 12, 3)
-        // (1, 5, 20), (10, 12, 29) 
-
-        // sliding window
-        // indices to a range within pre;
+        
+        long long max_coins = 0;
+        
+        // 1. Align Right: Window ends at coins[i][1]
         int left = 0;
-        for (int i = 0; i < pre.size(); i++) {
-            int l = pre[i].left;
-            int r = pre[i].right;
-            long long prefixSum = pre[i].prefixSum; 
-            while (pre[left].right < r - (k-1)) {
+        for (int i = 0; i < n; i++) {
+            int window_start = coins[i][1] - k + 1;
+            
+            // Find the first interval that overlaps with the window
+            while (coins[left][1] < window_start) {
                 left++;
             }
-            long long total = prefixSum - pre[left].prefixSum; // Fully covered intervals (left+1 to i)
-            long long overlap_len = pre[left].right - max(pre[left].left, r - k + 1) + 1;
-            long long overlap_coins = overlap_len * coins[left][2];
-            total += overlap_coins;
-            out = max(out, total);
-        }
-
-        int right = 0; // Notice right starts at 0, not pre.size() - 1, because we move it forward
-        for (int i = 0; i < pre.size(); i++) { // We can just iterate i forward
-            int l = pre[i].left;
             
-            // Move right pointer until the interval's left edge is outside the window
-            while (right < pre.size() && pre[right].left <= l + (k - 1)) {
+            // Sum of fully covered intervals (from left + 1 to i)
+            long long fully_covered = prefix[i + 1] - prefix[left + 1];
+            
+            // Add the partially covered interval on the left edge
+            long long overlap_len = coins[left][1] - max(coins[left][0], window_start) + 1;
+            long long total = fully_covered + overlap_len * coins[left][2];
+            
+            max_coins = max(max_coins, total);
+        }
+        
+        // 2. Align Left: Window starts at coins[i][0]
+        int right = 0;
+        for (int i = 0; i < n; i++) {
+            int window_end = coins[i][0] + k - 1;
+            
+            // Find the first interval that falls completely outside the right edge
+            while (right < n && coins[right][0] <= window_end) {
                 right++;
             }
             
-            // The interval that might be partially covered is right - 1
-            int last_included = right - 1;
+            int last = right - 1; // The interval overlapping the right edge
             
-            // Calculate fully covered intervals (from i to last_included - 1)
-            long long fully_covered = 0;
-            if (last_included > i) {
-                fully_covered = pre[last_included - 1].prefixSum - (i == 0 ? 0 : pre[i - 1].prefixSum);
-            }
+            // Sum of fully covered intervals (from i to last - 1)
+            long long fully_covered = prefix[last] - prefix[i];
             
-            // Calculate overlap length for the partially covered interval
-            long long overlap_len = min((long long)pre[last_included].right, (long long)l + k - 1) - pre[last_included].left + 1;
-            long long overlap_coins = overlap_len * coins[last_included][2];
+            // Add the partially covered interval on the right edge
+            long long overlap_len = min(coins[last][1], window_end) - coins[last][0] + 1;
+            long long total = fully_covered + overlap_len * coins[last][2];
             
-            long long total = fully_covered + overlap_coins;
-            out = max(out, total);
+            max_coins = max(max_coins, total);
         }
-        return out;
+        
+        return max_coins;
     }
 };

@@ -27,9 +27,7 @@ public:
                         cpy[d]++;
                     }
 
-                    if (dead.find(cpy) != dead.end() or vis.find(cpy) != vis.end()) {
-                        
-                    } else {
+                    if (dead.find(cpy) == dead.end() and vis.find(cpy) == vis.end()) {
                         q.push(cpy);
                         vis.insert(cpy);
                     }
@@ -38,11 +36,8 @@ public:
                         cpy[d] = '9';
                     } else {
                         cpy[d]--;
-
                     }
-                    if (dead.find(cpy) != dead.end() or vis.find(cpy) != vis.end()) {
-                        
-                    } else {
+                    if (dead.find(cpy) == dead.end() and vis.find(cpy) == vis.end()) {
                         q.push(cpy);
                         vis.insert(cpy);
                     }

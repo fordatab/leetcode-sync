@@ -5,7 +5,7 @@ public:
 
         for (char c : word) {
             if ('a' <= c and c <= 'z') {
-                if ((map[c-'a'].second > 0) or (map[c-'a'].first == -1)) {
+                if ((map[c-'a'].second > 0)) {
                     map[c-'a'].first = -1;
                 } else {
                     map[c-'a'].first = 1; 

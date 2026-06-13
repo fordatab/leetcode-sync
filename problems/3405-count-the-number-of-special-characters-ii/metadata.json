@@ -38,5 +38,13 @@
     "memory": "24.4 MB",
     "language": "C++",
     "difficulty": "Medium"
+  },
+  {
+    "submission_id": 2032218217,
+    "timestamp": 1781394704,
+    "runtime": "60 ms",
+    "memory": "24.2 MB",
+    "language": "C++",
+    "difficulty": "Medium"
   }
 ]

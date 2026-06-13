@@ -3,12 +3,13 @@ public:
     int openLock(vector<string>& deadends, string target) {
         queue<string> q;
         int out = 0;
+        unordered_set<string> vis;
         unordered_set<string> dead(deadends.begin(), deadends.end());
         q.push("0000");
         if (dead.find("0000") != dead.end()) {
             return -1;
         }
-        dead.insert("0000");
+        vis.insert("0000");
         while (!q.empty()) {
             int level = q.size();
 
@@ -26,19 +27,24 @@ public:
                         cpy[d]++;
                     }
 
-                    if (dead.find(cpy) == dead.end()) {
+                    if (dead.find(cpy) != dead.end() or vis.find(cpy) != vis.end()) {
+                        
+                    } else {
                         q.push(cpy);
-                        dead.insert(cpy);
+                        vis.insert(cpy);
                     }
                     cpy = curr;
                     if (cpy[d] == '0') {
                         cpy[d] = '9';
                     } else {
                         cpy[d]--;
+
                     }
-                    if (dead.find(cpy) == dead.end()) {
+                    if (dead.find(cpy) != dead.end() or vis.find(cpy) != vis.end()) {
+                        
+                    } else {
                         q.push(cpy);
-                        dead.insert(cpy);
+                        vis.insert(cpy);
                     }
                 } 
             }

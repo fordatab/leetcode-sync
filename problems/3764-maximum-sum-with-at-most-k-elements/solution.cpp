@@ -4,24 +4,17 @@ public:
         for (auto& row : grid) {
             sort(row.rbegin(), row.rend());
         }
-        // if (k == 0) {
-        //     return 0;
-        // }
-        priority_queue<int, vector<int>, greater<int>> minHeap;
+        vector<int> combined;
         for (int i = 0; i < grid.size(); i++) {
             for (int j = 0; j < limits[i]; j++) {
-                minHeap.push(grid[i][j]);
-
-                if (minHeap.size() > k) {
-                    minHeap.pop();
-                }
+                combined.push_back(grid[i][j]);
             }
         }
+        sort(combined.rbegin(), combined.rend());
         long long total = 0;
-        while (!minHeap.empty()) {
-            total += minHeap.top();
-            minHeap.pop();
-        } 
+        for (int i = 0; i < k; i++) {
+            total += combined[i];
+        }  
         return total;
     }
 };

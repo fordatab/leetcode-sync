@@ -88,6 +88,17 @@ class GraphQLError(LeetCodeError):
     """Raised when the GraphQL response contains an `errors` array."""
 
 
+class SubmissionUnavailableError(LeetCodeError):
+    """Raised when `submissionDetails` comes back null.
+
+    LeetCode returns HTTP 200 with `submissionDetails: null` (no `errors`
+    array) when the session cookie can't authorize access to the submission,
+    instead of a 401/403. When *every* detail fetch in a run hits this while
+    the public recent-submissions list still succeeds, an expired
+    LEETCODE_SESSION is the overwhelmingly likely cause.
+    """
+
+
 def _require_env(name: str) -> str:
     value = os.environ.get(name)
     if not value:
@@ -241,9 +252,11 @@ def fetch_submission_details(submission_id: int, *, debug: bool = False) -> dict
     )
     details = data.get("submissionDetails")
     if details is None:
-        raise LeetCodeError(
-            f"submissionDetails was null for id={submission_id} — id may not belong "
-            f"to this account, or the schema has drifted. Data: {json.dumps(data)[:500]}"
+        raise SubmissionUnavailableError(
+            f"submissionDetails was null for id={submission_id} — the session "
+            "cookie may be expired/unauthorized (LeetCode nulls this field instead "
+            "of returning 401), the id may not belong to this account, or the "
+            f"schema has drifted. Data: {json.dumps(data)[:500]}"
         )
     return details
 

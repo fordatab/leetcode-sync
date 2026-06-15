@@ -335,9 +335,11 @@ class ResilienceTests(MainTestBase):
             return fake_enrich(details, **kwargs)
 
         self._patch_apis(enrich=flaky_enrich)
-        committed = main.run(repo_path=str(self.repo))
+        # The good submission must still land and be pushed, but a partial
+        # failure makes the run raise so the process exits non-zero.
+        with self.assertRaises(main.SyncIncompleteError):
+            main.run(repo_path=str(self.repo))
 
-        self.assertEqual(committed, 1)
         self.assertTrue(
             (self.repo / "problems" / "0002-add-two-numbers").is_dir()
         )
@@ -345,6 +347,38 @@ class ResilienceTests(MainTestBase):
         from src import state
 
         self.assertEqual(state.load_state()["synced_submission_ids"], [202])
+        # The successful work was still pushed to the remote.
+        self.assertEqual(
+            _git(self.repo, "rev-parse", "HEAD"),
+            _git(self.remote, "rev-parse", self.branch),
+        )
+
+    def test_partial_failure_exit_code_is_1(self):
+        def flaky_enrich(details, **kwargs):
+            if details["question"]["questionId"] == "1":
+                raise RuntimeError("simulated Claude failure")
+            return fake_enrich(details, **kwargs)
+
+        self._patch_apis(enrich=flaky_enrich)
+        self.assertEqual(main.main(["--repo-path", str(self.repo)]), 1)
+
+    def test_all_details_null_is_treated_as_cookie_expiry(self):
+        # Every detail fetch returning null while the recent list works is the
+        # expired-session signature: run() must raise CookieExpiredError so the
+        # operator gets the "refresh LEETCODE_SESSION" guidance (exit code 2).
+        def null_details(submission_id, **kwargs):
+            raise leetcode.SubmissionUnavailableError(
+                f"submissionDetails was null for id={submission_id}"
+            )
+
+        self._patch_apis(details=null_details)
+        with self.assertRaises(leetcode.CookieExpiredError):
+            main.run(repo_path=str(self.repo))
+        self.assertEqual(main.main(["--repo-path", str(self.repo)]), 2)
+        # Nothing was committed or synced.
+        from src import state
+
+        self.assertEqual(state.load_state()["synced_submission_ids"], [])
 
     def test_cookie_expired_aborts_run(self):
         self._patch_apis()

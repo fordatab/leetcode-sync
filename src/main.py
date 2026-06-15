@@ -9,8 +9,15 @@ Run with `python -m src.main`. Each run:
      folder, and commits backdated to the submission timestamp.
   5. Commits state.json with a normal (current-time) commit and pushes.
 
-A single bad submission is logged and skipped — it never blocks the run.
-An expired LeetCode cookie aborts with a clear message (exit code 2).
+A single bad submission is logged and skipped so it never blocks the rest of
+the run, but any failure makes the process exit non-zero (exit code 1) after
+the successful submissions are committed and pushed — so a broken run shows up
+red in CI instead of silently reporting success.
+
+An expired LeetCode cookie aborts with a clear message (exit code 2). When
+every submission-detail fetch returns null while the public recent list still
+works — the signature of an expired session — that is treated as cookie
+expiry too, since LeetCode nulls the field instead of returning 401.
 """
 
 from __future__ import annotations
@@ -30,6 +37,15 @@ log = logging.getLogger(__name__)
 
 DEFAULT_FETCH_LIMIT = 20
 PROBLEMS_DIRNAME = "problems"
+
+
+class SyncIncompleteError(RuntimeError):
+    """Raised when one or more submissions failed to sync.
+
+    Successful submissions are still committed and pushed before this is
+    raised — it exists so the process exits non-zero (turning the CI run red)
+    rather than reporting success while silently skipping work.
+    """
 
 # LeetCode `lang.name` slug -> source file extension.
 _LANG_EXT = {
@@ -190,6 +206,8 @@ def run(
     cron runs leave it False.
 
     Raises CookieExpiredError if LeetCode auth fails (caller should abort).
+    Raises SyncIncompleteError if any individual submission failed to sync,
+    after committing and pushing whatever succeeded.
     """
     current = state.load_state()
     synced_ids = {int(x) for x in current["synced_submission_ids"]}
@@ -205,6 +223,8 @@ def run(
     log.info("%d %s submission(s), %d new to sync", len(fetched), label, len(new_subs))
 
     committed = 0
+    failed = 0
+    unavailable = 0  # subset of failed: submissionDetails came back null
     for submission in new_subs:
         submission_id = submission.get("id")
         try:
@@ -213,6 +233,9 @@ def run(
         except leetcode.CookieExpiredError:
             raise  # auth is dead — every later fetch fails too, so abort.
         except Exception as e:  # noqa: BLE001 - one bad submission must not block the rest
+            failed += 1
+            if isinstance(e, leetcode.SubmissionUnavailableError):
+                unavailable += 1
             log.error(
                 "Failed to sync submission %s (%s): %s",
                 submission_id,
@@ -230,8 +253,24 @@ def run(
     if total_commits > 0:
         git_ops.push(repo_path)
         log.info("Done: %d problem(s) synced and pushed.", committed)
-    else:
+    elif not new_subs:
         log.info("Done: nothing new to sync.")
+
+    if failed:
+        # Every detail fetch returning null while the public recent-submissions
+        # list succeeded is the signature of an expired session cookie, so point
+        # at the real, manually-fixable cause instead of a generic failure.
+        if new_subs and unavailable == len(new_subs):
+            raise leetcode.CookieExpiredError(
+                f"All {unavailable} submission detail fetch(es) returned null while "
+                "the (public) recent-submissions list succeeded. submissionDetails "
+                "requires authentication, so LEETCODE_SESSION is almost certainly "
+                "expired or invalid — refresh it."
+            )
+        raise SyncIncompleteError(
+            f"{failed} of {len(new_subs)} submission(s) failed to sync "
+            f"({committed} succeeded). See the errors above."
+        )
     return committed
 
 
@@ -277,6 +316,9 @@ def main(argv: list[str] | None = None) -> int:
             "Cookie expired — refresh the LEETCODE_SESSION secret.", file=sys.stderr
         )
         return 2
+    except SyncIncompleteError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
     except (leetcode.LeetCodeError, state.StateError, git_ops.GitError) as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 1

@@ -48,3 +48,12 @@ jobs:
         # commits are never stranded on the runner.
         if: always()
         run: git push
+
+      - name: Report sync failure
+        # The sync step exits non-zero when any submission fails (most often an
+        # expired LEETCODE_SESSION, which GitHub surfaces as a failed run and
+        # emails about). Emit a visible annotation in the run summary too.
+        if: failure()
+        run: |
+          echo "::error title=LeetCode sync failed::The sync run failed. The most likely cause is an expired LEETCODE_SESSION secret — refresh it from your browser (and LEETCODE_CSRF_TOKEN) in repo Settings → Secrets and variables → Actions. Check the 'Run sync' step logs above for details."
+          exit 1

@@ -8,28 +8,14 @@ public:
         int r = 0;
         int reachable = 0;
         for (int i = 1; i < n; i++) {
-            // cout << i << " " <<  l << endl;
             if (i - l > maxJump) {
-                if (dp[l]) {
-                    reachable--;
-                }
-                l++;
+                if (dp[l++]) reachable--;
             }
             if (i - r >= minJump) {
-                if (dp[r]) {
-                    reachable++;
-                }
-                r++;
+                if (dp[r++]) reachable++;
             }
-            // cout << reachable << endl;
-            if ((s[i] == '0') and reachable) {
-                dp[i] = true;
-            }
+            if ((s[i] == '0') and reachable) dp[i] = true;
         }
-        // cout << endl;
-        // for (auto b : dp) {
-        //     cout << b << endl;
-        // }
         return dp[n-1];
     }
 };

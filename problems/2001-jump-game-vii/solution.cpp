@@ -2,27 +2,34 @@ class Solution {
 public:
     bool canReach(string s, int minJump, int maxJump) {
         int n = s.size();
-        vector<bool> dp(n, false);
+        vector<bool> dp(n);
         dp[0] = true;
-        int reachable = 0; // Start with 0 available jumps
-        
+        int l = 0;
+        int r = 0;
+        int reachable = 0;
         for (int i = 1; i < n; i++) {
-            // A new index enters the valid jump window
-            if (i >= minJump && dp[i - minJump]) {
-                reachable++;
+            // cout << i << " " <<  l << endl;
+            if (i - l > maxJump) {
+                if (dp[l]) {
+                    reachable--;
+                }
+                l++;
             }
-            
-            // An old index falls out of the back of the jump window
-            if (i > maxJump && dp[i - maxJump - 1]) {
-                reachable--;
+            if (i - r >= minJump) {
+                if (dp[r]) {
+                    reachable++;
+                }
+                r++;
             }
-            
-            // If current spot is '0' and we have at least 1 valid spot to jump from
-            if (s[i] == '0' && reachable > 0) {
+            // cout << reachable << endl;
+            if ((s[i] == '0') and reachable) {
                 dp[i] = true;
             }
         }
-        
-        return dp[n - 1];
+        // cout << endl;
+        // for (auto b : dp) {
+        //     cout << b << endl;
+        // }
+        return dp[n-1];
     }
 };

@@ -1,24 +1,28 @@
 # Longest Common Prefix
 
 **Difficulty:** Easy
-**Tags:** string, array, prefix
+**Tags:** string, array, vertical-scanning
 
 ## Problem
 
-Given an array of strings, find the longest prefix that appears at the start of every string in the array. The array contains between 1 and 200 strings, each up to 200 characters long and consisting only of lowercase English letters. If no common prefix exists, return an empty string.
+Given an array of strings, find the longest prefix that is common to all strings in the array. If no common prefix exists among all strings, return an empty string. The input contains between 1 and 200 strings, each up to 200 characters long and consisting only of lowercase English letters.
 
 ## Approach
 
-The solution uses a character-by-character comparison approach. First, it finds the length of the shortest string in the array, since the common prefix cannot be longer than the shortest string. Then it iterates through each character position from 0 to this minimum length. At each position, it takes the character from the first string and compares it against the character at the same position in all other strings. If all strings have the same character at that position, it appends the character to the result. As soon as a mismatch is found at any position, the iteration stops and the accumulated prefix is returned.
+The solution uses a character-by-character vertical scanning approach. It iterates through each position in the first string and checks if the character at that position matches across all other strings in the array.
+
+For each character position `i` in the first string, it extracts that character and compares it with the character at the same position in every other string. If a mismatch is found (or if any string is too short and doesn't have a character at position `i`), it immediately returns the substring of the first string from index 0 to the current length `l`.
+
+A counter `l` tracks how many characters have been successfully matched across all strings. After successfully verifying a character position across all strings, `l` is incremented. If the loop completes without finding any mismatch, the entire first string (up to length `l`) is the common prefix.
 
 ## Complexity
 
 - **Time:** O(n * m)
-- **Space:** O(m)
+- **Space:** O(1)
 
 ## Stats
 
-- Submitted: 2022-06-08 12:09 UTC
-- Runtime: 1 ms
-- Memory: 40 MB
-- Language: Java
+- Submitted: 2026-06-15 06:52 UTC
+- Runtime: 0 ms
+- Memory: 11.8 MB
+- Language: C++

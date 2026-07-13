@@ -1,37 +1,30 @@
 class Solution {
 public:
     vector<int> exclusiveTime(int n, vector<string>& logs) {
-        stack<pair<int, int>> stk;
+        vector<int> res(n, 0);
+        stack<pair<int,int>> st; // {functionId, lastTimestamp}
 
-        vector<int> out(n);
-        int curr = 0;
-        for (string& l : logs) {
-            replace(l.begin(), l.end(), ':', ' ');
-            stringstream ss(l);
-            int id;
-            string start;
-            int time;
-            ss >> id;
-            ss >> start;
-            ss >> time;   
-            if (stk.size()) {
-                auto [t, i] = stk.top();
-                out[i] += time - t;
-                cout << i << " " << time - t + 1 << endl;
-                if (start == "end") {
-                    out[i]++;
-                    stk.pop();
-                    if (stk.size()) {
-                        stk.top().first = time + 1;
-                    }
-                    continue;
-                } else {
-                    stk.top().first = time + 1;
+        for (const string& log : logs) {
+            size_t p1 = log.find(':');
+            size_t p2 = log.find(':', p1 + 1);
+
+            int id = stoi(log.substr(0, p1));
+            string type = log.substr(p1 + 1, p2 - p1 - 1);
+            int time = stoi(log.substr(p2 + 1));
+
+            if (type == "start") {
+                if (!st.empty()) {
+                    res[st.top().first] += time - st.top().second;
+                }
+                st.push({id, time});
+            } else { // "end"
+                res[st.top().first] += time - st.top().second + 1;
+                st.pop();
+                if (!st.empty()) {
+                    st.top().second = time + 1;
                 }
             }
-            stk.push({time, id});
-            
         }
-        return out;
+        return res;
     }
 };
